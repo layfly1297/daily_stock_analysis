@@ -1,0 +1,50 @@
+name: Daily Stock Analysis
+
+on:
+  schedule:
+    # UTC 时间，北京时间 = UTC + 8
+    - cron: '0 10 * * 1-5'  # 周一到周五 18:00（北京时间）
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '分析模式'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - market-only
+          - stocks-only
+      force_run:
+        description: '非交易日强制执行'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run analysis
+        env:
+          STOCK_LIST: ${{ secrets.STOCK_LIST }}
+          ANSPIRE_API_KEYS: ${{ secrets.ANSPIRE_API_KEYS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECEIVERS: ${{ secrets.EMAIL_RECEIVERS }}
+        run: |
+          python main.py \
+            --${{ github.event.inputs.mode || 'full' }} \
+            ${{ github.event.inputs.force_run == 'true' && '--force-run' || '' }}
